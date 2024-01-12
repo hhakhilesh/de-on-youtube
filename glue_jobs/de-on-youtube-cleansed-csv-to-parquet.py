@@ -5,7 +5,7 @@ from pyspark.context import SparkContext
 from awsglue.context import GlueContext
 from awsglue.job import Job
 
-#from awsglue.dynamicframe import dynamicframe ##Akhilesh
+from awsglue.dynamicframe import DynamicFrame ##Akhilesh
 
 args = getResolvedOptions(sys.argv, ["JOB_NAME"])
 sc = SparkContext()
@@ -14,28 +14,15 @@ spark = glueContext.spark_session
 job = Job(glueContext)
 job.init(args["JOB_NAME"], args)
 
-predicate_pushdown = "region in ("ca","gb","us")" ##Akhilesh
+predicate_pushdown = "region in ('ca','gb','us')" ##Akhilesh
 
 # Script generated for node Amazon S3
-AmazonS3_node1705048340225 = glueContext.create_dynamic_frame.from_options(
-    format_options={
-        "quoteChar": '"',
-        "withHeader": True,
-        "separator": ",",
-        "optimizePerformance": False,
-    },
-    connection_type="s3",
-    format="csv",
-    connection_options={
-        "paths": [
-            "s3://de-on-youtube-raw-us-east-1-dev-akprojectlearn/youtube/raw_statistics/"
-        ],
-        "recurse": True,
-        "partitionKeys": ["region"],
-    },
-    transformation_ctx="AmazonS3_node1705048340225",
+AmazonS3_node1705048340225 = glueContext.create_dynamic_frame.from_catalog(
+    database = "de_youtube_raw", table_name = "raw_statistics", 
+    transformation_ctx = "AmazonS3_node1705048340225", 
     push_down_predicate = predicate_pushdown
-)##Akhilesh push_down_predicate and partitionKeys only
+)
+##Akhilesh push_down_predicate 
 
 # Script generated for node Change Schema
 ChangeSchema_node1705048815890 = ApplyMapping.apply(
@@ -60,16 +47,15 @@ ChangeSchema_node1705048815890 = ApplyMapping.apply(
     ],
     transformation_ctx="ChangeSchema_node1705048815890",
 )
-datasink1 = ChangeSchema_node1705048815890.toDF().coalesce(1)
-df_final_output = DynamicFrame.fromDF(datasink1, glueContext, "df_final_output")
+#datasink1 = ChangeSchema_node1705048815890.toDF().coalesce(1)
+#df_final_output = DynamicFrame.fromDF(datasink1, glueContext, "df_final_output")
 # Script generated for node Amazon S3
 AmazonS3_node1705048433029 = glueContext.write_dynamic_frame.from_options(
-    frame=df_final_output,
+    frame=ChangeSchema_node1705048815890,
     connection_type="s3",
     format="glueparquet",
     connection_options={
         "path": "s3://de-on-youtube-cleansed-us-east-1-dev-akprojectlearn/youtube/raw_statistics/",
-        "partitionKeys": ["region"],
     },
     format_options={"compression": "snappy"},
     transformation_ctx="AmazonS3_node1705048433029",
